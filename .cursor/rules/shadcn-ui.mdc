@@ -1,0 +1,47 @@
+---
+description: shadcn/ui conventions for all UI elements in this project
+alwaysApply: true
+---
+
+# shadcn/ui UI Standards
+
+This project uses **shadcn/ui** for all UI elements. Do not build custom primitives (buttons, inputs, dialogs, etc.) from scratch when a shadcn component exists.
+
+## Project Setup
+
+shadcn is configured in [components.json](mdc:components.json). Components live in `src/components/ui/`, utilities in [src/lib/utils.ts](mdc:src/lib/utils.ts), and theme variables in [src/app/globals.css](mdc:src/app/globals.css).
+
+## Initialization
+
+If shadcn is not initialized in the project, run:
+
+```bash
+npx shadcn@latest init
+```
+
+## Adding Components
+
+Before using a component, check `src/components/ui/`. If it is missing, install it with the CLI:
+
+```bash
+npx shadcn@latest add button
+```
+
+Replace `button` with the component name (e.g. `card`, `input`, `dialog`).
+
+## Usage
+
+- Import from `@/components/ui/<component>`
+- Use `cn()` from `@/lib/utils` to merge Tailwind classes
+- Use `lucide-react` for icons (configured in components.json)
+- Extend shadcn components via props and `className`; avoid duplicating component source
+
+```tsx
+// ✅ GOOD
+import { Button } from "@/components/ui/button"
+
+<Button variant="outline">Save</Button>
+
+// ❌ BAD — custom button instead of shadcn
+<button className="rounded-lg bg-black px-4 py-2">Save</button>
+```
