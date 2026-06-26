@@ -7,9 +7,12 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-sans);
-  --font-mono: var(--font-geist-mono);
-  --font-heading: var(--font-sans);
+  --font-sans: var(--font-poppins);
+  --font-mono: var(--font-poppins);
+  --font-serif: var(--font-poppins);
+  --font-heading: var(--font-poppins);
+  --default-font-family: var(--font-poppins);
+  --default-mono-font-family: var(--font-poppins);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -121,10 +124,18 @@
   * {
     @apply border-border outline-ring/50;
   }
+  html.dark {
+    color-scheme: dark;
+  }
   body {
     @apply bg-background text-foreground;
   }
-  html {
-    @apply font-sans;
+  html,
+  body,
+  code,
+  kbd,
+  samp,
+  pre {
+    font-family: var(--font-poppins);
   }
 }
