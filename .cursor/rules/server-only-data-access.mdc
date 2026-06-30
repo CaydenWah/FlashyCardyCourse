@@ -1,0 +1,63 @@
+---
+alwaysApply: true
+---
+
+# Server-Only Data Access
+
+All data retrieval and all database mutations (insert, update, delete) **must** happen on the server. Never access the database from client components.
+
+## Data Retriever
+
+Use **React Server Components** (RSC) for all data reads. Pass data down as props to Client Components.
+
+```tsx
+// ✅ GOOD — data retriever in a Server Component
+// app/decks/page.tsx  (no "use client")
+import { db } from "@/lib/db";
+import { decks } from "@/lib/schema";
+import { eq } from "drizzle-orm";
+import { auth } from "@clerk/nextjs/server";
+
+export default async function DecksPage() {
+  const { userId } = await auth();
+  const userDecks = await db.select().from(decks).where(eq(decks.clerkUserId, userId!));
+  return <DeckList decks={userDecks} />;
+}
+
+// ❌ BAD — data retriever in a Client Component
+"use client";
+useEffect(() => {
+  fetch("/api/decks").then(...); // avoid unnecessary round-trips
+}, []);
+```
+
+## Mutations (Insert / Update / Delete)
+
+Use **Server Actions** for all writes. Never call Drizzle from a Client Component.
+
+```tsx
+// ✅ GOOD — Server Action
+// app/decks/actions.ts
+"use server";
+import { auth } from "@clerk/nextjs/server";
+import { db } from "@/lib/db";
+import { decks } from "@/lib/schema";
+
+export async function createDeck(title: string) {
+  const { userId } = await auth();
+  if (!userId) throw new Error("Unauthorized");
+  await db.insert(decks).values({ title, clerkUserId: userId });
+}
+
+// ❌ BAD — mutation from a Client Component
+"use client";
+import { db } from "@/lib/db"; // never import db in client code
+await db.insert(decks).values({ ... });
+```
+
+## Rules
+
+- Server Components: data retriever only (no `useState`, no `useEffect`)
+- Server Actions (`"use server"`): all inserts, updates, and deletes
+- Client Components (`"use client"`): UI interaction only — receive data via props or Server Action results
+- Never import `db` or `schema` from client-side code

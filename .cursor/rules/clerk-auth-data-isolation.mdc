@@ -1,0 +1,50 @@
+---
+description: Clerk auth data isolation — every server action and API route must scope queries to the authenticated user's ID
+alwaysApply: true
+---
+
+# Clerk Auth: Data Isolation
+
+Every server action and API route that touches the database **must** verify the caller's identity with Clerk and scope all queries to that user. Never trust a user-supplied ID for ownership checks.
+
+## Pattern
+
+```ts
+import { auth } from "@clerk/nextjs/server";
+import { db } from "@/lib/db";
+import { decks, cards } from "@/lib/schema";
+import { eq, and } from "drizzle-orm";
+
+// ✅ GOOD — always get userId from Clerk, never from params/body
+const { userId } = await auth();
+if (!userId) return new Response("Unauthorized", { status: 401 });
+
+// ✅ GOOD — scope every query with clerkUserId
+const userDecks = await db.select().from(decks).where(eq(decks.clerkUserId, userId));
+
+// ✅ GOOD — for child resources (cards), join through the parent deck
+const card = await db
+  .select()
+  .from(cards)
+  .innerJoin(decks, eq(cards.deckId, decks.id))
+  .where(and(eq(cards.id, cardId), eq(decks.clerkUserId, userId)));
+
+if (!card.length) return new Response("Not Found", { status: 404 });
+```
+
+```ts
+// ❌ BAD — trusting caller-supplied userId
+const { userId } = params; // attacker can supply any ID
+const userDecks = await db.select().from(decks).where(eq(decks.clerkUserId, userId));
+
+// ❌ BAD — fetching a deck by ID without checking ownership
+const deck = await db.select().from(decks).where(eq(decks.id, deckId));
+```
+
+## Rules
+
+- Always call `auth()` (server) at the top of every route/action; reject immediately if `userId` is falsy.
+- `decks` has a `clerkUserId` column — filter it on every query.
+- `cards` and `cardReviews` have no direct `clerkUserId`; reach ownership through `decks` via a join or a sub-query.
+- `cardReviews` has its own `clerkUserId` — always filter it as well.
+- Never expose another user's data even if the request contains a valid-looking resource ID.

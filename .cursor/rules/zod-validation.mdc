@@ -1,0 +1,56 @@
+---
+alwaysApply: true
+---
+
+# Input Validation: Use Zod in Every Server Action
+
+All data posted to Server Actions **must** be validated with Zod before touching the database. Server Actions must accept a **TypeScript type** as their argument — never `FormData`.
+
+## Pattern
+
+```ts
+// ✅ GOOD — typed argument + Zod validation before writing
+"use server";
+import { z } from "zod";
+import { auth } from "@clerk/nextjs/server";
+import { db } from "@/lib/db";
+import { decks } from "@/lib/schema";
+
+const createDeckSchema = z.object({
+  title: z.string().trim().min(1, "Title is required").max(100),
+});
+
+type CreateDeckInput = z.infer<typeof createDeckSchema>;
+
+export async function createDeck(input: CreateDeckInput) {
+  const { userId } = await auth();
+  if (!userId) throw new Error("Unauthorized");
+
+  const parsed = createDeckSchema.safeParse(input);
+
+  if (!parsed.success) {
+    return { error: parsed.error.flatten().fieldErrors };
+  }
+
+  await db.insert(decks).values({ title: parsed.data.title, clerkUserId: userId });
+}
+```
+
+```ts
+// ❌ BAD — using FormData as the argument type
+export async function createDeck(formData: FormData) { ... }
+
+// ❌ BAD — writing to the database without validation
+export async function createDeck(input: CreateDeckInput) {
+  await db.insert(decks).values({ title: input.title, clerkUserId: userId }); // unvalidated
+}
+```
+
+## Rules
+
+- Server Actions must accept a **TypeScript type**, not `FormData`.
+- Use `z.infer<typeof schema>` to derive the TypeScript type from the Zod schema — no duplicate type definitions.
+- Always use `safeParse` (not `parse`) so errors are returned, not thrown.
+- Define schemas as `const` outside the action function.
+- Use `parsed.data` (not the original input) when passing values to Drizzle.
+- Return `{ error: ... }` on validation failure so the UI can display field-level errors.

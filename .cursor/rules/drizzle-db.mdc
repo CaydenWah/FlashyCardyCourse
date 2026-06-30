@@ -1,0 +1,49 @@
+---
+description: All database interactions must use Drizzle ORM schemas and queries
+alwaysApply: true
+---
+
+# Database: Use Drizzle ORM Exclusively
+
+All database interactions **must** go through Drizzle ORM. Never use raw SQL strings, the `neon` SQL tag directly, or any other query method.
+
+## Setup
+
+- DB client: `db` exported from [`src/lib/db.ts`](mdc:src/lib/db.ts)
+- Schema tables: `decks`, `cards`, `cardReviews` (+ enum `reviewResultEnum`) in [`src/lib/schema.ts`](mdc:src/lib/schema.ts)
+
+## Usage
+
+```ts
+// ✅ GOOD — Drizzle query
+import { db } from "@/lib/db";
+import { decks } from "@/lib/schema";
+import { eq } from "drizzle-orm";
+
+const userDecks = await db.select().from(decks).where(eq(decks.clerkUserId, userId));
+
+// ✅ GOOD — insert
+await db.insert(cards).values({ deckId, front, back });
+
+// ✅ GOOD — update
+await db.update(decks).set({ title }).where(eq(decks.id, deckId));
+
+// ✅ GOOD — delete
+await db.delete(cards).where(eq(cards.id, cardId));
+```
+
+```ts
+// ❌ BAD — raw SQL
+const sql = neon(process.env.DATABASE_URL!);
+const rows = await sql`SELECT * FROM decks WHERE clerk_user_id = ${userId}`;
+```
+
+## Schema Changes
+
+- Add or modify tables/columns **only** in `src/lib/schema.ts`
+- After schema changes, generate and apply migrations:
+  ```bash
+  npx drizzle-kit generate
+  npx drizzle-kit migrate
+  ```
+- Never manually edit files in the `drizzle/` migrations folder

@@ -1,0 +1,52 @@
+---
+alwaysApply: true
+---
+
+# Authentication & Authorization: Clerk Route Protection
+
+All pages and layouts that require authentication **must** verify the user with Clerk and redirect unauthenticated visitors immediately.
+
+## Protected Pages
+
+Use Clerk's `auth()` in Server Components or layouts to guard routes.
+
+```typescript
+// in page.tsx or layout.tsx
+import { auth } from "@clerk/nextjs/server";
+import { redirect } from "next/navigation";
+
+export default async function ProtectedPage() {
+  const { userId } = await auth();
+  if (!userId) redirect("/sign-in");
+
+  // safe to render authenticated content
+}
+```
+
+## Protected Server Actions
+
+Every Server Action that reads or mutates data must also call `auth()` and reject unauthenticated requests.
+
+```ts
+// ✅ GOOD — auth check at the top of every action
+"use server";
+import { auth } from "@clerk/nextjs/server";
+
+export async function myAction(input: MyInput) {
+  const { userId } = await auth();
+  if (!userId) throw new Error("Unauthorized");
+  // ...
+}
+
+// ❌ BAD — no auth check; any caller can invoke the action
+export async function myAction(input: MyInput) {
+  await db.insert(decks).values({ ... });
+}
+```
+
+## Rules
+
+- Call `auth()` at the top of every protected page, layout, and Server Action.
+- Redirect with `redirect("/sign-in")` in pages/layouts; throw `new Error("Unauthorized")` in actions.
+- Never trust a user-supplied `userId` — always read it from `auth()`.
+- Scope all database queries to the authenticated `userId` (see `clerk-auth-data-isolation` rule).
